@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subnautica Map & Navigation</title>
+  <!-- Grist Plugin API -->
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <!-- Compass Section -->
+  <div id="compass-viewport">
+    <div id="center-mark"></div>
+    <div id="compass-ribbon"></div>
+  </div>
+
+  <!-- Calibration Controls -->
+  <div class="cal-row">
+    BÚSSOLA: 
+    <button class="cal-btn" onclick="adjustCal('comp', -1)"> &lt; </button> 
+    <span id="valCalComp">0</span> 
+    <button class="cal-btn" onclick="adjustCal('comp', 1)"> &gt; </button>
+    | MAPA X: 
+    <button class="cal-btn" onclick="adjustCal('mapX', -5)"> &lt; </button> 
+    <span id="valCalMapX">0</span> 
+    <button class="cal-btn" onclick="adjustCal('mapX', 5)"> &gt; </button>
+    | MAPA Z: 
+    <button class="cal-btn" onclick="adjustCal('mapZ', -5)"> &lt; </button> 
+    <span id="valCalMapZ">0</span> 
+    <button class="cal-btn" onclick="adjustCal('mapZ', 5)"> &gt; </button>
+  </div>
+
+  <!-- Distance and Angle Controls -->
+  <div style="width:100%">
+    <div style="display:flex; justify-content: space-between; font-size: 11px; padding: 0 5px; align-items: center;">
+        <span style="color:var(--sub-blue)">DISTÂNCIA: <b id="txtDist">0</b>m 
+          <button class="cal-btn fix" onclick="manualScaleFix()">CORRIGIR</button>
+        </span>
+        <span style="color:var(--sub-yellow)">ÂNGULO: <b id="txtAng">0</b>°</span>
+    </div>
+    <input type="range" id="slideDist" min="0" max="3000" value="0" oninput="updateUI()">
+  </div>
+
+  <!-- Coordinate Data Grid -->
+  <div class="data-grid">
+    <div class="card"><div id="valX" class="val">0</div><div class="label">X</div></div>
+    <div class="card"><div id="valY" class="val">0</div><div class="label">PROF</div></div>
+    <div class="card"><div id="valZ" class="val">0</div><div class="label">Z</div></div>
+  </div>
+
+  <!-- Map Section -->
+  <div id="map-container">
+    <canvas id="map-canvas" width="800" height="800"></canvas>
+  </div>
+  
+  <div style="font-size: 9px; color: #666; margin-top: 2px;">
+    Raio Atual do Mapa: <span id="currentRange">2000</span>m
+  </div>
+</div>
+
+<!-- Custom Logic -->
+<script src="script.js"></script>
+
+</body>
+</html>

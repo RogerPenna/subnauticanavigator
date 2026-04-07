@@ -1,0 +1,191 @@
+:root {
+  --sub-blue: #00d2ff;
+  --sub-yellow: #f4d03f;
+  --sub-green: #00ff41;
+  --bg: #0a0a0a;
+}
+
+body {
+  background: var(--bg);
+  color: white;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 5px;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  width: 100%;
+}
+
+#compass-viewport {
+  position: relative;
+  width: 100%;
+  height: 65px;
+  border-top: 1px solid var(--sub-blue);
+  border-bottom: 1px solid var(--sub-blue);
+  overflow: hidden;
+  background: rgba(0, 210, 255, 0.05);
+}
+
+#compass-ribbon {
+  position: absolute;
+  display: flex;
+  height: 100%;
+  white-space: nowrap;
+  will-change: transform;
+  top: 0;
+}
+
+.tick {
+  display: inline-block;
+  width: 60px;
+  text-align: center;
+  color: var(--sub-blue);
+  font-size: 12px;
+  padding-top: 10px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tick.major {
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  padding-top: 6px;
+}
+
+.tick.ordinal {
+  color: #eee;
+  font-weight: bold;
+  font-size: 13px;
+  padding-top: 8px;
+}
+
+.tick::after {
+  content: '';
+  position: absolute;
+  top: 45px;
+  left: 50%;
+  width: 1px;
+  height: 12px;
+  background: var(--sub-blue);
+  opacity: 0.5;
+}
+
+.tick.major::after {
+  height: 20px;
+  background: white;
+  opacity: 1;
+  width: 2px;
+}
+
+#center-mark {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100%;
+  background: var(--sub-yellow);
+  z-index: 10;
+  box-shadow: 0 0 10px var(--sub-yellow);
+}
+
+.cal-row {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--sub-yellow);
+  margin: 2px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+.cal-btn {
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.cal-btn.fix {
+  background: var(--sub-green);
+  color: black;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+input[type=range] {
+  width: 100%;
+  height: 30px;
+  -webkit-appearance: none;
+  background: #222;
+  border-radius: 5px;
+  margin: 5px 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 35px;
+  height: 35px;
+  background: var(--sub-yellow);
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+  width: 100%;
+}
+
+.card {
+  border: 1px solid var(--sub-green);
+  padding: 5px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.val {
+  font-family: monospace;
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.label {
+  font-size: 9px;
+  color: var(--sub-green);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+#map-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  justify-content: center;
+  background: #000;
+  border: 1px solid #333;
+  position: relative;
+  overflow: hidden;
+}
+
+#map-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  cursor: crosshair;
+}
