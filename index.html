@@ -64,6 +64,11 @@
   <!-- Map Section -->
   <div id="map-container">
     <canvas id="map-canvas" width="800" height="800"></canvas>
+    <div id="zoom-container">
+      <input type="range" id="zoom-bar" min="1" max="10" step="0.1" value="1" oninput="updateZoom(this.value)">
+      <div class="zoom-label">10x</div>
+      <div class="zoom-label" style="bottom: 0;">1x</div>
+    </div>
   </div>
   
   <div style="font-size: 9px; color: #666; margin-top: 2px;">

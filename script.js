@@ -19,11 +19,21 @@ let gristBaseUrl = "";
 let mapRange = 2000;
 let maps = [];
 let currentMapId = null;
+let zoomLevel = 1;
 
 // Constants
 const tickWidth = 60;
 const pxPerDeg = tickWidth / 15;
 const mapImg = new Image();
+
+/**
+ * Updates the zoom level and redraws the map
+ */
+function updateZoom(val) {
+  zoomLevel = parseFloat(val);
+  document.getElementById('zoom-bar').value = zoomLevel;
+  calculate();
+}
 
 /**
  * Toggles the side panel menu
@@ -206,22 +216,36 @@ function drawMap(x, z) {
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
 
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const scale = (centerX / mapRange) * zoomLevel;
+  
+  ctx.save();
+  // Translate to center, scale, then translate back to keep center focus
+  ctx.translate(centerX, centerY);
+  ctx.scale(zoomLevel, zoomLevel);
+  ctx.translate(-centerX, -centerY);
+
   if (mapImg.complete && mapImg.naturalWidth !== 0) {
     ctx.drawImage(mapImg, calMapX, calMapZ, w, h);
   }
+  ctx.restore();
 
-  const centerX = w / 2;
-  const centerY = h / 2;
-  const scale = centerX / mapRange;
-  const mx = centerX + (x * scale);
-  const mz = centerY - (z * scale);
+  // Draw point (X, Z are world coords, we calculate view coords)
+  // Scale world coords to pixels
+  const mx = centerX + (x * scale / zoomLevel * zoomLevel); 
+  // Wait, if I used ctx.scale for the image, the marker should also be drawn in that context or calculated.
+  // Let's calculate manually for the marker to keep it sharp and same size regardless of zoom.
+  
+  const vx = centerX + (x * scale);
+  const vz = centerY - (z * scale);
 
   // Draw point
   ctx.shadowBlur = 15;
   ctx.shadowColor = "black";
   ctx.fillStyle = "var(--sub-yellow)";
   ctx.beginPath();
-  ctx.arc(mx, mz, 12, 0, Math.PI * 2);
+  ctx.arc(vx, vz, 12, 0, Math.PI * 2);
   ctx.fill();
 
   // Draw outline
@@ -234,7 +258,7 @@ function drawMap(x, z) {
   ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
   ctx.setLineDash([5, 5]);
   ctx.beginPath();
-  ctx.moveTo(mx, mz);
+  ctx.moveTo(vx, vz);
   ctx.lineTo(centerX, centerY);
   ctx.stroke();
   ctx.setLineDash([]);
@@ -308,12 +332,15 @@ function updateUI() {
 
 canvas.onpointerdown = (e) => {
   const rect = canvas.getBoundingClientRect();
-  const mapScale = (canvas.width / 2) / mapRange;
+  // Adjusted for zoom: the "effective" map scale increases with zoom, 
+  // but we want to map click to the SAME world coordinates.
+  const mapScale = ((canvas.width / 2) / mapRange) * zoomLevel;
   const scaleFactor = canvas.width / rect.width;
   
   const clickX = e.clientX - rect.left;
   const clickY = e.clientY - rect.top;
   
+  // World coordinates calculation considering zoom from center
   const worldX = (clickX - (rect.width / 2)) * scaleFactor / mapScale;
   const worldZ = -((clickY - (rect.height / 2)) * scaleFactor / mapScale);
   
@@ -324,6 +351,37 @@ canvas.onpointerdown = (e) => {
   calculate();
 };
 
+// Wheel Zoom
+canvas.onwheel = (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.5 : 0.5;
+  const nextZoom = Math.min(Math.max(zoomLevel + delta, 1), 10);
+  updateZoom(nextZoom);
+};
+
+// Pinch Zoom Support
+let lastTouchDist = 0;
+canvas.ontouchstart = (e) => {
+  if (e.touches.length === 2) {
+    lastTouchDist = Math.hypot(
+      e.touches[0].pageX - e.touches[1].pageX,
+      e.touches[0].pageY - e.touches[1].pageY
+    );
+  }
+};
+canvas.ontouchmove = (e) => {
+  if (e.touches.length === 2) {
+    const dist = Math.hypot(
+      e.touches[0].pageX - e.touches[1].pageX,
+      e.touches[0].pageY - e.touches[1].pageY
+    );
+    const delta = (dist - lastTouchDist) / 20;
+    const nextZoom = Math.min(Math.max(zoomLevel + delta, 1), 10);
+    updateZoom(nextZoom);
+    lastTouchDist = dist;
+  }
+};
+
 mapImg.onload = calculate;
 
 // Global exports for HTML handlers
@@ -331,6 +389,7 @@ window.adjustCal = adjustCal;
 window.manualScaleFix = manualScaleFix;
 window.updateUI = updateUI;
 window.toggleMenu = toggleMenu;
+window.updateZoom = updateZoom;
 
 // Initial Setup
 createCompass();
