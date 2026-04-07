@@ -20,6 +20,8 @@ let mapRange = 2000;
 let maps = [];
 let currentMapId = null;
 let zoomLevel = 1;
+let mapOffsetX = 0;
+let mapOffsetZ = 0;
 
 // Constants
 const tickWidth = 60;
@@ -32,6 +34,13 @@ const mapImg = new Image();
 function updateZoom(val) {
   zoomLevel = parseFloat(val);
   document.getElementById('zoom-bar').value = zoomLevel;
+  
+  // Reset offset if zoom is 1 (fit screen)
+  if (zoomLevel === 1) {
+    mapOffsetX = 0;
+    mapOffsetZ = 0;
+  }
+  
   calculate();
 }
 
@@ -221,8 +230,8 @@ function drawMap(x, z) {
   const scale = (centerX / mapRange) * zoomLevel;
   
   ctx.save();
-  // Translate to center, scale, then translate back to keep center focus
-  ctx.translate(centerX, centerY);
+  // Apply Zoom and Pan
+  ctx.translate(centerX + mapOffsetX, centerY + mapOffsetZ);
   ctx.scale(zoomLevel, zoomLevel);
   ctx.translate(-centerX, -centerY);
 
@@ -231,14 +240,9 @@ function drawMap(x, z) {
   }
   ctx.restore();
 
-  // Draw point (X, Z are world coords, we calculate view coords)
-  // Scale world coords to pixels
-  const mx = centerX + (x * scale / zoomLevel * zoomLevel); 
-  // Wait, if I used ctx.scale for the image, the marker should also be drawn in that context or calculated.
-  // Let's calculate manually for the marker to keep it sharp and same size regardless of zoom.
-  
-  const vx = centerX + (x * scale);
-  const vz = centerY - (z * scale);
+  // Draw point (view coords)
+  const vx = centerX + (x * scale) + mapOffsetX;
+  const vz = centerY - (z * scale) + mapOffsetZ;
 
   // Draw point
   ctx.shadowBlur = 15;
@@ -259,7 +263,7 @@ function drawMap(x, z) {
   ctx.setLineDash([5, 5]);
   ctx.beginPath();
   ctx.moveTo(vx, vz);
-  ctx.lineTo(centerX, centerY);
+  ctx.lineTo(centerX + mapOffsetX, centerY + mapOffsetZ);
   ctx.stroke();
   ctx.setLineDash([]);
 }
@@ -330,25 +334,61 @@ function updateUI() {
   calculate();
 }
 
+let isPanning = false;
+let startPanX = 0;
+let startPanZ = 0;
+
 canvas.onpointerdown = (e) => {
   const rect = canvas.getBoundingClientRect();
-  // Adjusted for zoom: the "effective" map scale increases with zoom, 
-  // but we want to map click to the SAME world coordinates.
-  const mapScale = ((canvas.width / 2) / mapRange) * zoomLevel;
-  const scaleFactor = canvas.width / rect.width;
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  // Always prepare for a potential pan
+  isPanning = true;
+  startPanX = x - mapOffsetX;
+  startPanZ = y - mapOffsetZ;
+  canvas.setPointerCapture(e.pointerId);
+
+  // Store start position to check if it was a click or a drag on pointerup
+  canvas.dataset.startX = x;
+  canvas.dataset.startY = y;
+};
+
+window.onpointermove = (e) => {
+  if (isPanning) {
+    const rect = canvas.getBoundingClientRect();
+    mapOffsetX = (e.clientX - rect.left) - startPanX;
+    mapOffsetZ = (e.clientY - rect.top) - startPanZ;
+    calculate();
+  }
+};
+
+window.onpointerup = (e) => {
+  if (!isPanning) return;
+  isPanning = false;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
   
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-  
-  // World coordinates calculation considering zoom from center
-  const worldX = (clickX - (rect.width / 2)) * scaleFactor / mapScale;
-  const worldZ = -((clickY - (rect.height / 2)) * scaleFactor / mapScale);
-  
-  dist = Math.round(Math.sqrt(worldX**2 + worldZ**2));
-  slideDist.value = dist;
-  angle = (Math.atan2(-worldX, -worldZ) * 180 / Math.PI + 360) % 360;
-  
-  calculate();
+  const startX = parseFloat(canvas.dataset.startX);
+  const startY = parseFloat(canvas.dataset.startY);
+  const moveDist = Math.hypot(x - startX, y - startY);
+
+  // If the pointer barely moved, treat it as a CLICK to set the target
+  if (moveDist < 5) {
+    const scaleFactor = canvas.width / rect.width;
+    const mapScale = ((canvas.width / 2) / mapRange) * zoomLevel;
+    
+    // Adjust click for zoom and current pan offset
+    const worldX = (x * scaleFactor - (canvas.width / 2) - mapOffsetX) / mapScale;
+    const worldZ = -((y * scaleFactor - (canvas.height / 2) - mapOffsetZ) / mapScale);
+    
+    dist = Math.round(Math.sqrt(worldX**2 + worldZ**2));
+    slideDist.value = dist;
+    angle = (Math.atan2(-worldX, -worldZ) * 180 / Math.PI + 360) % 360;
+    calculate();
+  }
 };
 
 // Wheel Zoom
