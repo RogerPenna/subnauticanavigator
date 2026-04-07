@@ -17,11 +17,96 @@ let calMapZ = 0;
 let gristToken = "";
 let gristBaseUrl = "";
 let mapRange = 2000;
+let maps = [];
+let currentMapId = null;
 
 // Constants
 const tickWidth = 60;
 const pxPerDeg = tickWidth / 15;
 const mapImg = new Image();
+
+/**
+ * Toggles the side panel menu
+ */
+function toggleMenu() {
+  const panel = document.getElementById('side-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    loadMaps();
+  }
+}
+
+/**
+ * Loads the list of maps from the Config_Mapa table
+ */
+async function loadMaps() {
+  try {
+    // We assume the widget is connected to the Config_Mapa table
+    // or we fetch it via docApi if we have full access.
+    // Since grist.onRecords is the most reliable way when connected:
+    const records = await grist.docApi.fetchTable('Config_Mapa');
+    
+    // Filter by EmUso column
+    maps = records.id.map((id, index) => {
+      const record = {};
+      for (const key in records) {
+        record[key] = records[key][index];
+      }
+      return record;
+    }).filter(m => m.EmUso === true);
+
+    renderMapList();
+  } catch (e) {
+    console.error("Error loading maps:", e);
+  }
+}
+
+/**
+ * Renders the map list in the side panel
+ */
+function renderMapList() {
+  const list = document.getElementById('map-list');
+  list.innerHTML = '';
+
+  maps.forEach(map => {
+    const item = document.createElement('div');
+    item.className = `map-item ${map.id === currentMapId ? 'active' : ''}`;
+    // Assuming there's a Name or just use ID if not found
+    item.innerText = map.Nome || `Mapa #${map.id}`;
+    item.onclick = () => selectMap(map);
+    list.appendChild(item);
+  });
+}
+
+/**
+ * Selects a map and updates the widget state
+ */
+async function selectMap(map) {
+  currentMapId = map.id;
+  
+  // Update calibration from map record
+  calMapX = map.CalMapX || 0;
+  calMapZ = map.CalMapZ || 0;
+  calComp = map.CalComp || 0;
+  mapRange = map.MapRange || 2000;
+
+  document.getElementById('valCalComp').innerText = calComp;
+  document.getElementById('valCalMapX').innerText = calMapX;
+  document.getElementById('valCalMapZ').innerText = calMapZ;
+  document.getElementById('currentRange').innerText = mapRange;
+
+  // Handle Image
+  const att = map.ImagemMapa;
+  let fileId = Array.isArray(att) ? (att[0] === 'L' ? att[1] : att[0]) : att;
+  
+  if (fileId && gristBaseUrl && gristToken) {
+    mapImg.src = `${gristBaseUrl}/attachments/${fileId}/download?auth=${gristToken}`;
+  }
+
+  renderMapList();
+  calculate();
+  toggleMenu(); // Close menu after selection
+}
 
 /**
  * Initializes the compass ribbon with degree ticks and cardinal directions
@@ -245,6 +330,7 @@ mapImg.onload = calculate;
 window.adjustCal = adjustCal;
 window.manualScaleFix = manualScaleFix;
 window.updateUI = updateUI;
+window.toggleMenu = toggleMenu;
 
 // Initial Setup
 createCompass();
