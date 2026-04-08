@@ -28,7 +28,7 @@ let mapOffsetZ = 0;
 let markerScale = 1;
 
 // Constants
-const tickWidth = 40; // Standardized width for each tick
+const tickWidth = 40; 
 const mapImg = new Image();
 
 /**
@@ -95,13 +95,18 @@ async function loadMarkerTypes() {
 
 function updateTypesDropdowns() {
   const select = document.getElementById('m-type');
-  if (!select) return;
+  const filter = document.getElementById('filter-type');
+  if (!select || !filter) return;
+  
   select.innerHTML = '';
+  filter.innerHTML = '<option value="all">TODOS</option>';
+  
   markerTypes.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t.Nome;
     opt.innerText = t.Nome;
-    select.appendChild(opt);
+    select.appendChild(opt.cloneNode(true));
+    filter.appendChild(opt);
   });
 }
 
@@ -129,11 +134,16 @@ async function loadMarkers() {
  */
 function renderMarkersList() {
   const list = document.getElementById('markers-list');
+  const filterValue = document.getElementById('filter-type').value;
+  
   list.innerHTML = '';
+  
   markers.forEach(m => {
+    if (filterValue !== 'all' && m.Type !== filterValue) return;
+
     const item = document.createElement('div');
     item.className = `map-item ${m.id === currentMarkerId ? 'active' : ''}`;
-    if (m.Concluido) item.style.borderLeft = "4px solid var(--sub-green)";
+    if (m.Concluido) item.style.borderLeft = "4px solid #ff4d4d"; // Red border for completed
     
     const mX = m.X || 0;
     const mZ = m.Z || 0;
@@ -143,8 +153,8 @@ function renderMarkersList() {
     item.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: start;">
         <div>
-          <div style="font-weight: bold; color: white;">${m.Nome || `Ponto #${m.id}`}</div>
-          <div class="marker-type" style="color: ${typeColor}">${m.Type || 'SEM TIPO'}</div>
+          <div style="font-weight: bold; color: white;">${m.Nome || `Ponto #${m.id}`} ${m.Concluido ? '✅' : ''}</div>
+          <div class="marker-type" style="color: ${typeColor}">${m.Type || 'SEM TIPO'} ${m.Concluido ? '(CONCLUÍDO)' : ''}</div>
         </div>
         <button class="cal-btn" style="padding: 2px 5px;" onclick="event.stopPropagation(); openMarkerModal(${JSON.stringify(m).replace(/"/g, '&quot;')})">✎</button>
       </div>
@@ -158,6 +168,8 @@ function renderMarkersList() {
     item.onclick = () => selectMarker(m);
     list.appendChild(item);
   });
+  
+  calculate(); // Redraw map to reflect filter
 }
 
 /**
@@ -303,16 +315,23 @@ function drawPin(ctx, x, y, color, scale = 1, isCompleted = false, isSelected = 
   ctx.save();
   ctx.translate(x, y);
   
-  if (isCompleted && !isSelected) ctx.globalAlpha = 0.4;
-
   // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.3)";
   ctx.beginPath(); ctx.ellipse(0, 0, size * 0.5, size * 0.2, 0, 0, Math.PI * 2); ctx.fill();
 
   // Pin Body
   ctx.fillStyle = color;
-  ctx.strokeStyle = isSelected ? "black" : "white";
-  ctx.lineWidth = isSelected ? 3 : 1.5;
+  
+  if (isSelected) {
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 3;
+  } else if (isCompleted) {
+    ctx.strokeStyle = "#ff4d4d"; // RED outline for completed
+    ctx.lineWidth = 3;
+  } else {
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1.5;
+  }
   
   ctx.beginPath(); ctx.moveTo(0, 0); 
   ctx.bezierCurveTo(-size * 0.6, -size * 0.6, -size * 0.6, -size * 1.5, 0, -size * 1.5);
@@ -320,7 +339,7 @@ function drawPin(ctx, x, y, color, scale = 1, isCompleted = false, isSelected = 
   ctx.fill(); ctx.stroke();
 
   // Pin Center
-  ctx.fillStyle = isCompleted ? "#00ff41" : "white";
+  ctx.fillStyle = isCompleted ? "#ff4d4d" : "white";
   ctx.beginPath(); ctx.arc(0, -size * 1.1, size * 0.25, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
@@ -332,6 +351,7 @@ function drawMap(x, z) {
   const centerX = w / 2;
   const centerY = h / 2;
   const scale = (centerX / mapRange) * zoomLevel;
+  const filterValue = document.getElementById('filter-type')?.value || 'all';
   
   ctx.save();
   ctx.translate(centerX + mapOffsetX, centerY + mapOffsetZ);
@@ -342,8 +362,10 @@ function drawMap(x, z) {
     ctx.drawImage(mapImg, calMapX, calMapZ, w, h);
   }
 
-  // Draw all saved markers
+  // Draw filtered markers
   markers.forEach(m => {
+    if (filterValue !== 'all' && m.Type !== filterValue) return;
+
     const mx = m.X || 0; const mz = m.Z || 0;
     const mvx = centerX + (mx * scale / zoomLevel);
     const mvz = centerY - (mz * scale / zoomLevel);
@@ -353,7 +375,7 @@ function drawMap(x, z) {
   });
   ctx.restore();
 
-  // Get selected marker coords if any, otherwise manual
+  // Pointer logic
   let pointerVX, pointerVZ;
   if (currentMarkerId) {
     const m = markers.find(m => m.id === currentMarkerId);
@@ -365,7 +387,6 @@ function drawMap(x, z) {
     drawPin(ctx, pointerVX, pointerVZ, "#f4d03f", markerScale * 1.5, false, false);
   }
 
-  // ALWAYS draw the line to center
   ctx.strokeStyle = "rgba(255, 255, 0, 0.5)"; ctx.setLineDash([5, 5]);
   ctx.beginPath(); 
   ctx.moveTo(pointerVX, pointerVZ); 
@@ -479,7 +500,11 @@ window.onpointerup = (e) => {
     const clickWorldZ = -((y * scaleFactor - (canvas.height / 2) - mapOffsetZ) / mapScale);
     const hitThreshold = (35 * markerScale) / mapScale; 
     let markerClicked = null;
+    
+    // Only search through currently filtered markers
+    const filterValue = document.getElementById('filter-type').value;
     for (const m of markers) {
+      if (filterValue !== 'all' && m.Type !== filterValue) continue;
       if (Math.hypot(clickWorldX - (m.X || 0), clickWorldZ - (m.Z || 0)) < hitThreshold) {
         markerClicked = m; break;
       }
@@ -548,6 +573,6 @@ async function saveConfig() {
 }
 
 mapImg.onload = calculate;
-window.adjustCal = adjustCal; window.manualScaleFix = manualScaleFix; window.updateUI = updateUI; window.toggleMenu = toggleMenu; window.toggleMarkersMenu = toggleMarkersMenu; window.updateZoom = updateZoom; window.saveConfig = saveConfig; window.openMarkerModal = openMarkerModal; window.closeMarkerModal = closeMarkerModal; window.addMarker = addMarker; window.updateMarkerScale = updateMarkerScale; window.openTypesModal = openTypesModal; window.closeTypesModal = closeTypesModal; window.addTypeRow = addTypeRow; window.deleteTypeRow = deleteTypeRow; window.saveTypes = saveTypes; window.updateTypeData = updateTypeData;
+window.adjustCal = adjustCal; window.manualScaleFix = manualScaleFix; window.updateUI = updateUI; window.toggleMenu = toggleMenu; window.toggleMarkersMenu = toggleMarkersMenu; window.updateZoom = updateZoom; window.saveConfig = saveConfig; window.openMarkerModal = openMarkerModal; window.closeMarkerModal = closeMarkerModal; window.addMarker = addMarker; window.updateMarkerScale = updateMarkerScale; window.openTypesModal = openTypesModal; window.closeTypesModal = closeTypesModal; window.addTypeRow = addTypeRow; window.deleteTypeRow = deleteTypeRow; window.saveTypes = saveTypes; window.updateTypeData = updateTypeData; window.renderMarkersList = renderMarkersList;
 createCompass(); calculate();
 loadMarkerTypes();
