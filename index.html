@@ -11,9 +11,76 @@
 </head>
 <body>
 
+<button id="markers-toggle" onclick="toggleMarkersMenu()">📍</button>
 <button id="menu-toggle" onclick="toggleMenu()">☰</button>
 
-<div id="side-panel">
+<div id="markers-panel" class="side-panel left">
+  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; margin-bottom: 5px;">
+    <h3>Marcadores</h3>
+    <button class="cal-btn fix" style="padding: 5px 10px; font-size: 14px;" onclick="openMarkerModal()">+</button>
+  </div>
+  
+  <div style="padding: 5px 0; margin-bottom: 10px; border-bottom: 1px solid #222; display: flex; gap: 10px; align-items: center;">
+    <div style="flex: 1;">
+      <label style="font-size: 9px; color: #888; text-transform: uppercase;">Tamanho dos Ícones</label>
+      <input type="range" id="marker-size-slider" min="0.5" max="3" step="0.1" value="1" oninput="updateMarkerScale(this.value)" style="height: 20px;">
+    </div>
+    <button class="cal-btn" style="font-size: 10px;" onclick="openTypesModal()">CONFIG TIPOS</button>
+  </div>
+
+  <div id="markers-list" class="map-list">
+    <!-- Markers will be injected here -->
+  </div>
+</div>
+
+<!-- Types Management Modal -->
+<div id="types-modal" class="modal">
+  <div class="modal-content" style="max-width: 500px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h4>Gerenciar Tipos e Cores</h4>
+      <button class="cal-btn fix" onclick="addTypeRow()">+ NOVO TIPO</button>
+    </div>
+    <div id="types-list-container" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+      <!-- Type rows will be injected here -->
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="cal-btn save" style="flex: 1;" onclick="saveTypes()">SALVAR TUDO</button>
+      <button class="cal-btn" style="flex: 1;" onclick="closeTypesModal()">FECHAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Marker Creation Modal -->
+<div id="marker-modal" class="modal">
+  <div class="modal-content">
+    <h4>Novo Marcador</h4>
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="m-nome" placeholder="Ex: Base Principal">
+    </div>
+    <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;">
+      <div><label>X</label><input type="number" id="m-x" value="0"></div>
+      <div><label>Z</label><input type="number" id="m-z" value="0"></div>
+      <div><label>Y (Prof)</label><input type="number" id="m-y" value="0"></div>
+    </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="m-type">
+        <!-- Types will be injected here -->
+      </select>
+    </div>
+    <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+      <input type="checkbox" id="m-done" style="width: 20px; height: 20px;">
+      <label style="margin: 0;">Concluído</label>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button id="btn-create-marker" class="cal-btn save" style="flex: 1;" onclick="addMarker()">CRIAR</button>
+      <button class="cal-btn" style="flex: 1;" onclick="closeMarkerModal()">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<div id="side-panel" class="side-panel right">
   <h3>Mapas Disponíveis</h3>
   <div id="map-list" class="map-list">
     <!-- Map items will be injected here -->
@@ -41,15 +108,16 @@
     <button class="cal-btn" onclick="adjustCal('mapZ', -5)"> &lt; </button> 
     <span id="valCalMapZ">0</span> 
     <button class="cal-btn" onclick="adjustCal('mapZ', 5)"> &gt; </button>
+    <button class="cal-btn save" onclick="saveConfig()">💾 SALVAR</button>
   </div>
 
   <!-- Distance and Angle Controls -->
   <div style="width:100%">
-    <div style="display:flex; justify-content: space-between; font-size: 11px; padding: 0 5px; align-items: center;">
-        <span style="color:var(--sub-blue)">DISTÂNCIA: <b id="txtDist">0</b>m 
+    <div style="display:flex; justify-content: space-between; padding: 0 5px; align-items: center;">
+        <span class="dist-ang-label" style="color:var(--sub-blue)">DISTÂNCIA: <b id="txtDist">0</b>m 
           <button class="cal-btn fix" onclick="manualScaleFix()">CORRIGIR</button>
         </span>
-        <span style="color:var(--sub-yellow)">ÂNGULO: <b id="txtAng">0</b>°</span>
+        <span class="dist-ang-label" style="color:var(--sub-yellow)">ÂNGULO: <b id="txtAng">0</b>°</span>
     </div>
     <input type="range" id="slideDist" min="0" max="3000" value="0" oninput="updateUI()">
   </div>
@@ -64,12 +132,12 @@
   <!-- Map Section -->
   <div id="map-container">
     <canvas id="map-canvas" width="800" height="800"></canvas>
-  </div>
-
-  <div id="zoom-container">
-    <input type="range" id="zoom-bar" min="1" max="10" step="0.1" value="1" oninput="updateZoom(this.value)">
-    <div class="zoom-label">10x</div>
-    <div class="zoom-label" style="bottom: 0;">1x</div>
+    
+    <div id="zoom-container">
+      <input type="range" id="zoom-bar" min="1" max="10" step="0.1" value="1" oninput="updateZoom(this.value)">
+      <div class="zoom-label">10x</div>
+      <div class="zoom-label" style="bottom: 0;">1x</div>
+    </div>
   </div>
   
   <div style="font-size: 9px; color: #666; margin-top: 2px;">

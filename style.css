@@ -126,6 +126,13 @@ body {
   margin-left: 5px;
 }
 
+.cal-btn.save {
+  background: var(--sub-blue);
+  color: black;
+  font-weight: bold;
+  margin-left: 10px;
+}
+
 input[type=range] {
   width: 100%;
   height: 30px;
@@ -160,16 +167,22 @@ input[type=range]::-webkit-slider-thumb {
 
 .val {
   font-family: monospace;
-  font-size: 22px;
+  font-size: 15px; /* Reduced from 22px (~30% reduction) */
   font-weight: bold;
   line-height: 1;
 }
 
 .label {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--sub-green);
   text-transform: uppercase;
   margin-top: 2px;
+}
+
+/* ... Distance and Angle Styles ... */
+.dist-ang-label {
+    font-size: 14px !important; /* Increased font size */
+    font-weight: bold;
 }
 
 #map-container {
@@ -190,11 +203,12 @@ input[type=range]::-webkit-slider-thumb {
   cursor: crosshair;
 }
 
-/* Zoom Bar Styles - Fixed on the right side of the screen */
+/* Zoom Bar Styles - Centered vertically on the right side of the map container */
 #zoom-container {
-  position: fixed;
-  top: 60px; /* Below the menu button */
+  position: absolute;
+  top: 50%;
   right: 12px;
+  transform: translateY(-50%);
   width: 30px;
   height: 200px;
   background: rgba(10,10,10,0.8);
@@ -265,10 +279,9 @@ input[type=range]::-webkit-slider-thumb {
 .zoom-label:last-of-type { bottom: 2px; }
 
 /* Side Panel Styles */
-#menu-toggle {
+#menu-toggle, #markers-toggle {
   position: fixed;
   top: 10px;
-  right: 10px;
   z-index: 100;
   background: var(--sub-blue);
   color: black;
@@ -281,32 +294,103 @@ input[type=range]::-webkit-slider-thumb {
   box-shadow: 0 0 10px rgba(0,210,255,0.5);
 }
 
-#side-panel {
+#menu-toggle { right: 10px; }
+#markers-toggle { left: 10px; }
+
+.side-panel {
   position: fixed;
   top: 0;
-  right: -250px;
-  width: 250px;
+  width: 350px; /* Increased from 250px */
   height: 100%;
   background: rgba(10, 10, 10, 0.95);
-  border-left: 1px solid var(--sub-blue);
   z-index: 90;
-  transition: right 0.3s ease;
+  transition: all 0.3s ease;
   padding: 50px 15px 20px;
   box-sizing: border-box;
   overflow-y: auto;
 }
 
-#side-panel.open {
-  right: 0;
+.side-panel.right {
+  right: -350px;
+  border-left: 1px solid var(--sub-blue);
 }
 
-#side-panel h3 {
-  color: var(--sub-blue);
-  font-size: 14px;
+.side-panel.left {
+  left: -350px;
+  border-right: 1px solid var(--sub-blue);
+}
+
+.side-panel.open.right { right: 0; }
+.side-panel.open.left { left: 0; }
+
+.marker-info {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.marker-type {
+  color: var(--sub-yellow);
+  font-weight: bold;
   text-transform: uppercase;
-  border-bottom: 1px solid #333;
-  padding-bottom: 5px;
-  margin-top: 0;
+  font-size: 9px;
+  margin-bottom: 2px;
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 200;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.8);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background-color: #1a1a1a;
+  padding: 20px;
+  border: 1px solid var(--sub-blue);
+  width: 90%;
+  max-width: 400px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0,210,255,0.3);
+}
+
+.modal h4 {
+  margin: 0 0 15px 0;
+  color: var(--sub-blue);
+  text-transform: uppercase;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  padding: 8px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 14px;
 }
 
 .map-list {
