@@ -19,13 +19,17 @@ let gristBaseUrl = "";
 let mapRange = 2000;
 let maps = [];
 let markers = [];
-let markerTypes = []; // From Tipos_Marcadores table
+let markerTypes = []; 
 let currentMapId = null;
 let currentMarkerId = null;
 let zoomLevel = 1;
 let mapOffsetX = 0;
 let mapOffsetZ = 0;
 let markerScale = 1;
+
+// Constants
+const tickWidth = 40; // Standardized width for each tick
+const mapImg = new Image();
 
 /**
  * Updates the global scale for all marker icons
@@ -34,11 +38,6 @@ function updateMarkerScale(val) {
   markerScale = parseFloat(val);
   calculate();
 }
-
-// Constants
-const tickWidth = 60;
-const pxPerDeg = tickWidth / 15;
-const mapImg = new Image();
 
 /**
  * Updates the zoom level and redraws the map
@@ -96,6 +95,7 @@ async function loadMarkerTypes() {
 
 function updateTypesDropdowns() {
   const select = document.getElementById('m-type');
+  if (!select) return;
   select.innerHTML = '';
   markerTypes.forEach(t => {
     const opt = document.createElement('option');
@@ -228,6 +228,9 @@ async function selectMap(map) {
   toggleMenu();
 }
 
+/**
+ * Initializes the compass ribbon
+ */
 function createCompass() {
   ribbon.innerHTML = '';
   const subTickDeg = 45 / 6; 
@@ -247,7 +250,7 @@ function createCompass() {
       else if (Math.abs(currentAngle - 270) < 0.1) { label = "W"; div.classList.add('major'); }
       else if (Math.abs(currentAngle - 315) < 0.1) { label = "NW"; div.classList.add('ordinal'); }
       div.innerText = label;
-      div.style.width = "30px"; 
+      div.style.width = tickWidth + "px"; 
       ribbon.appendChild(div);
     }
   }
@@ -285,25 +288,38 @@ function calculate() {
   document.getElementById('valZ').innerText = Object.is(z, -0) ? 0 : z;
   document.getElementById('txtDist').innerText = dist;
   document.getElementById('txtAng').innerText = cleanAngle;
+  
   const viewportWidth = viewport.getBoundingClientRect().width;
   const centerPoint = viewportWidth / 2;
-  const scrollPos = (angle * (30/(45/6))) + (3 * 360 * (30/(45/6))) - centerPoint + calComp;
+  const pxPerDeg = tickWidth / (45 / 6);
+  const scrollPos = (angle * pxPerDeg) + (3 * 360 * pxPerDeg) - centerPoint + calComp;
   ribbon.style.transform = `translateX(${-scrollPos}px)`;
   drawMap(x, z);
 }
 
-function drawPin(ctx, x, y, color, scale = 1, isCompleted = false) {
-  const size = 15 * scale;
+function drawPin(ctx, x, y, color, scale = 1, isCompleted = false, isSelected = false) {
+  const finalScale = isSelected ? scale * 1.3 : scale;
+  const size = 15 * finalScale;
   ctx.save();
   ctx.translate(x, y);
-  if (isCompleted) ctx.globalAlpha = 0.4;
+  
+  if (isCompleted && !isSelected) ctx.globalAlpha = 0.4;
+
+  // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.3)";
   ctx.beginPath(); ctx.ellipse(0, 0, size * 0.5, size * 0.2, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = color; ctx.strokeStyle = "white"; ctx.lineWidth = 1.5;
+
+  // Pin Body
+  ctx.fillStyle = color;
+  ctx.strokeStyle = isSelected ? "black" : "white";
+  ctx.lineWidth = isSelected ? 3 : 1.5;
+  
   ctx.beginPath(); ctx.moveTo(0, 0); 
   ctx.bezierCurveTo(-size * 0.6, -size * 0.6, -size * 0.6, -size * 1.5, 0, -size * 1.5);
   ctx.bezierCurveTo(size * 0.6, -size * 1.5, size * 0.6, -size * 0.6, 0, 0);
   ctx.fill(); ctx.stroke();
+
+  // Pin Center
   ctx.fillStyle = isCompleted ? "#00ff41" : "white";
   ctx.beginPath(); ctx.arc(0, -size * 1.1, size * 0.25, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -316,26 +332,45 @@ function drawMap(x, z) {
   const centerX = w / 2;
   const centerY = h / 2;
   const scale = (centerX / mapRange) * zoomLevel;
+  
   ctx.save();
   ctx.translate(centerX + mapOffsetX, centerY + mapOffsetZ);
   ctx.scale(zoomLevel, zoomLevel);
   ctx.translate(-centerX, -centerY);
+  
   if (mapImg.complete && mapImg.naturalWidth !== 0) {
     ctx.drawImage(mapImg, calMapX, calMapZ, w, h);
   }
+
+  // Draw all saved markers
   markers.forEach(m => {
     const mx = m.X || 0; const mz = m.Z || 0;
     const mvx = centerX + (mx * scale / zoomLevel);
     const mvz = centerY - (mz * scale / zoomLevel);
     const typeColor = markerTypes.find(t => t.Nome === m.Type)?.Cor || "#ffffff";
-    drawPin(ctx, mvx, mvz, typeColor, markerScale, m.Concluido);
+    const isSelected = (m.id === currentMarkerId);
+    drawPin(ctx, mvx, mvz, typeColor, markerScale, m.Concluido, isSelected);
   });
   ctx.restore();
-  const vx = centerX + (x * scale) + mapOffsetX;
-  const vz = centerY - (z * scale) + mapOffsetZ;
-  drawPin(ctx, vx, vz, "#f4d03f", markerScale * 1.5, currentMarkerId !== null);
+
+  // Get selected marker coords if any, otherwise manual
+  let pointerVX, pointerVZ;
+  if (currentMarkerId) {
+    const m = markers.find(m => m.id === currentMarkerId);
+    pointerVX = centerX + (m.X * scale) + mapOffsetX;
+    pointerVZ = centerY - (m.Z * scale) + mapOffsetZ;
+  } else {
+    pointerVX = centerX + (x * scale) + mapOffsetX;
+    pointerVZ = centerY - (z * scale) + mapOffsetZ;
+    drawPin(ctx, pointerVX, pointerVZ, "#f4d03f", markerScale * 1.5, false, false);
+  }
+
+  // ALWAYS draw the line to center
   ctx.strokeStyle = "rgba(255, 255, 0, 0.5)"; ctx.setLineDash([5, 5]);
-  ctx.beginPath(); ctx.moveTo(vx, vz); ctx.lineTo(centerX + mapOffsetX, centerY + mapOffsetZ); ctx.stroke();
+  ctx.beginPath(); 
+  ctx.moveTo(pointerVX, pointerVZ); 
+  ctx.lineTo(centerX + mapOffsetX, centerY + mapOffsetZ); 
+  ctx.stroke();
   ctx.setLineDash([]);
 }
 
@@ -389,27 +424,14 @@ async function addMarker() {
   } catch (e) { console.error(e); }
 }
 
-/**
- * Types Management
- */
-function openTypesModal() {
-  renderTypesList();
-  document.getElementById('types-modal').style.display = 'flex';
-}
-
-function closeTypesModal() {
-  document.getElementById('types-modal').style.display = 'none';
-}
-
+function openTypesModal() { renderTypesList(); document.getElementById('types-modal').style.display = 'flex'; }
+function closeTypesModal() { document.getElementById('types-modal').style.display = 'none'; }
 function renderTypesList() {
   const container = document.getElementById('types-list-container');
   container.innerHTML = '';
   markerTypes.forEach((t, i) => {
     const row = document.createElement('div');
-    row.className = 'form-group';
-    row.style.display = 'flex';
-    row.style.gap = '10px';
-    row.style.alignItems = 'center';
+    row.className = 'form-group'; row.style.display = 'flex'; row.style.gap = '10px'; row.style.alignItems = 'center';
     row.innerHTML = `
       <input type="text" value="${t.Nome}" onchange="updateTypeData(${i}, 'Nome', this.value)" style="flex: 2;">
       <input type="color" value="${t.Cor}" onchange="updateTypeData(${i}, 'Cor', this.value)" style="flex: 1; height: 35px;">
@@ -418,48 +440,24 @@ function renderTypesList() {
     container.appendChild(row);
   });
 }
-
-function updateTypeData(index, key, val) {
-  markerTypes[index][key] = val;
-}
-
-function addTypeRow() {
-  markerTypes.push({ Nome: "Novo Tipo", Cor: "#ffffff" });
-  renderTypesList();
-}
-
-function deleteTypeRow(index) {
-  markerTypes.splice(index, 1);
-  renderTypesList();
-}
-
+function updateTypeData(index, key, val) { markerTypes[index][key] = val; }
+function addTypeRow() { markerTypes.push({ Nome: "Novo Tipo", Cor: "#ffffff" }); renderTypesList(); }
+function deleteTypeRow(index) { markerTypes.splice(index, 1); renderTypesList(); }
 async function saveTypes() {
   try {
-    // This is a bit brute-force for a prototype: clear and re-add or sync.
-    // For Grist, we'll map current markerTypes to Update/Add actions.
     const actions = [];
-    // 1. Clear existing table (if you want full sync)
     const existing = await grist.docApi.fetchTable('Tipos_Marcadores');
-    if (existing.id && existing.id.length > 0) {
-      actions.push(['BulkRemoveRecord', 'Tipos_Marcadores', existing.id]);
-    }
-    // 2. Add current state
-    markerTypes.forEach(t => {
-      actions.push(['AddRecord', 'Tipos_Marcadores', null, { Nome: t.Nome, Cor: t.Cor }]);
-    });
-
+    if (existing.id && existing.id.length > 0) { actions.push(['BulkRemoveRecord', 'Tipos_Marcadores', existing.id]); }
+    markerTypes.forEach(t => { actions.push(['AddRecord', 'Tipos_Marcadores', null, { Nome: t.Nome, Cor: t.Cor }]); });
     await grist.docApi.applyUserActions(actions);
-    alert("Tipos salvos!");
-    loadMarkerTypes(); // Refresh global state
-  } catch (e) {
-    console.error("Error saving types:", e);
-  }
+    alert("Tipos salvos!"); loadMarkerTypes();
+  } catch (e) { console.error(e); }
 }
 
 // Interaction Listeners
 let isDragging = false; let lastX = 0;
 viewport.onpointerdown = (e) => { isDragging = true; lastX = e.clientX; viewport.setPointerCapture(e.pointerId); };
-window.onpointermove = (e) => { if (isDragging) { angle = (angle - (e.clientX - lastX) / (60/15) + 360) % 360; lastX = e.clientX; calculate(); } };
+window.onpointermove = (e) => { if (isDragging) { angle = (angle - (e.clientX - lastX) / (tickWidth/(45/6)) + 360) % 360; lastX = e.clientX; calculate(); } };
 window.onpointerup = () => { isDragging = false; };
 function updateUI() { dist = slideDist.value; calculate(); }
 let isPanning = false; let startPanX = 0; let startPanZ = 0;
@@ -474,26 +472,18 @@ window.onpointerup = (e) => {
   const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
   const startX = parseFloat(canvas.dataset.startX); const startY = parseFloat(canvas.dataset.startY);
   const moveDist = Math.hypot(x - startX, y - startY);
-  
-  if (moveDist < 10) { // Increased tolerance for click
+  if (moveDist < 10) {
     const scaleFactor = canvas.width / rect.width;
     const mapScale = ((canvas.width / 2) / mapRange) * zoomLevel;
-    
-    // Convert click position to world coordinates, accounting for pan and scale
     const clickWorldX = (x * scaleFactor - (canvas.width / 2) - mapOffsetX) / mapScale;
     const clickWorldZ = -((y * scaleFactor - (canvas.height / 2) - mapOffsetZ) / mapScale);
-
-    // Hitbox detection: 40 pixels radius converted to game-world units
-    const hitThreshold = (40 * markerScale) / mapScale; 
+    const hitThreshold = (35 * markerScale) / mapScale; 
     let markerClicked = null;
-    
     for (const m of markers) {
-      const mx = m.X || 0; const mz = m.Z || 0;
-      if (Math.hypot(clickWorldX - mx, clickWorldZ - mz) < hitThreshold) {
+      if (Math.hypot(clickWorldX - (m.X || 0), clickWorldZ - (m.Z || 0)) < hitThreshold) {
         markerClicked = m; break;
       }
     }
-
     if (markerClicked) {
       selectMarker(markerClicked);
     } else {
@@ -505,7 +495,6 @@ window.onpointerup = (e) => {
     }
   }
 };
-
 canvas.onwheel = (e) => { e.preventDefault(); const delta = e.deltaY > 0 ? -0.5 : 0.5; updateZoom(Math.min(Math.max(zoomLevel + delta, 1), 10)); };
 
 grist.ready({
@@ -532,10 +521,7 @@ async function updateToken() {
 grist.onRecord(async (record) => {
   if (!gristToken) await updateToken();
   if (markerTypes.length === 0) await loadMarkerTypes();
-  if (record.EmUso === false) {
-    if (!currentMapId) await loadInitialActiveMap();
-    return;
-  }
+  if (record.EmUso === false) { if (!currentMapId) await loadInitialActiveMap(); return; }
   selectMap(record);
 });
 
@@ -551,6 +537,14 @@ async function loadInitialActiveMap() {
     }
   } catch (e) {}
   return false;
+}
+
+async function saveConfig() {
+  if (!currentMapId) return;
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', 'Config_Mapa', currentMapId, { CalComp: calComp, CalMapX: calMapX, CalMapZ: calMapZ, MapRange: mapRange }]]);
+    alert("Configurações salvas!");
+  } catch (e) {}
 }
 
 mapImg.onload = calculate;
