@@ -8,3 +8,4 @@ Thumbs.db
 
 # Grist specific
 grist-plugin-api.js.map
+.env

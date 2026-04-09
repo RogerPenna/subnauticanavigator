@@ -523,17 +523,7 @@ window.onpointerup = (e) => {
 canvas.onwheel = (e) => { e.preventDefault(); const delta = e.deltaY > 0 ? -0.5 : 0.5; updateZoom(Math.min(Math.max(zoomLevel + delta, 1), 10)); };
 
 grist.ready({
-  requiredAccess: 'full',
-  columns: [
-    { name: "ImagemMapa", title: "Mapa", type: "Any" },
-    { name: "EmUso", title: "Em Uso", type: "Bool" },
-    { name: "CalComp", title: "Cal. Bússola", type: "Numeric", optional: true },
-    { name: "CalMapX", title: "Cal. Mapa X", type: "Numeric", optional: true },
-    { name: "CalMapZ", title: "Cal. Mapa Z", type: "Numeric", optional: true },
-    { name: "MapRange", title: "Raio do Mapa", type: "Numeric", optional: true },
-    { name: "Profundidade", title: "Profundidade", type: "Numeric", optional: true },
-    { name: "Concluido", title: "Concluído", type: "Bool", optional: true }
-  ]
+  requiredAccess: 'full'
 });
 
 async function updateToken() {
